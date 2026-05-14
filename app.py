@@ -1,76 +1,50 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
-import os
 
 app = Flask(__name__)
 CORS(app)
 
+# ✅ ADD YOUR FIXED REPLIES HERE
+responses = [
+    { "input": "hi",                 "reply": "Hi there! 😊 How can I help you?" },
+    { "input": "hello",              "reply": "Hello! Nice to meet you 👋" },
+    { "input": "how are you",        "reply": "I am fine, thank you! How about you? 😊" },
+    { "input": "i am fine",          "reply": "Great to hear that! 😊" },
+    { "input": "good morning",       "reply": "Good morning! Have a wonderful day ☀️" },
+    { "input": "good night",         "reply": "Good night! Sleep well 🌙" },
+    { "input": "bye",                "reply": "Goodbye! Have a great day 👋" },
+    { "input": "thanks",             "reply": "You are welcome! 😊" },
+    { "input": "thank you",          "reply": "Happy to help anytime! 😊" },
+    { "input": "what is your name",  "reply": "I am your Power BI Chatbot! 🤖" },
+    { "input": "who are you",        "reply": "I am a chatbot connected via API! 🤖" },
+    { "input": "what is power bi",   "reply": "Power BI is a Microsoft analytics tool! 📊" },
+    { "input": "help",               "reply": "Just type your question and I will answer! 😊" }
+]
+
 @app.route('/')
 def home():
-    return 'Chatbot API is running!'
+    return 'Chatbot API is running! ✅'
 
-@app.route('/chat', methods=['POST'])
+@app.route('/chat', methods=['POST', 'OPTIONS'])
 def chat():
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
 
-    try:
+    data = request.json
+    user_message = data.get('message', '').lower().strip()
 
-        data = request.get_json()
+    # Exact match first
+    for item in responses:
+        if item['input'] == user_message:
+            return jsonify({ 'reply': item['reply'] })
 
-        user_message = data.get('message', '')
+    # Partial match
+    for item in responses:
+        if item['input'] in user_message:
+            return jsonify({ 'reply': item['reply'] })
 
-        api_key = os.environ.get("GROQ_API_KEY")
-
-        if not api_key:
-            return jsonify({
-                'reply': 'GROQ API key missing'
-            }), 500
-
-        groq_response = requests.post(
-            'https://api.groq.com/openai/v1/chat/completions',
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json'
-            },
-            json={
-                'model': 'llama3-8b-8192',
-                'messages': [
-                    {
-                        'role': 'system',
-                        'content': 'You are a friendly chatbot.'
-                    },
-                    {
-                        'role': 'user',
-                        'content': user_message
-                    }
-                ],
-                'max_tokens': 200
-            }
-        )
-
-        print(groq_response.status_code)
-        print(groq_response.text)
-
-        result = groq_response.json()
-
-        if 'choices' not in result:
-            return jsonify({
-                'reply': result
-            }), 500
-
-        bot_reply = result['choices'][0]['message']['content']
-
-        return jsonify({
-            'reply': bot_reply
-        })
-
-    except Exception as e:
-
-        print(str(e))
-
-        return jsonify({
-            'reply': str(e)
-        }), 500
+    # Default reply
+    return jsonify({ 'reply': "Sorry, I don't understand 🤔 Try: hello, how are you, bye" })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
