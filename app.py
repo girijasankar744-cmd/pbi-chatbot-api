@@ -1,19 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import requests
+import os
 
 app = Flask(__name__)
 CORS(app)
-
-responses = [
-    { "input": "hi",                "reply": "Hi there! How can I help you?" },
-    { "input": "hello",             "reply": "Hello! Nice to meet you!" },
-    { "input": "how are you",       "reply": "I am fine, thank you! How about you?" },
-    { "input": "good morning",      "reply": "Good morning! Have a wonderful day!" },
-    { "input": "bye",               "reply": "Goodbye! Have a great day!" },
-    { "input": "thanks",            "reply": "You are welcome!" },
-    { "input": "what is your name", "reply": "I am your Power BI Chatbot!" },
-    { "input": "help",              "reply": "Just type your question and I will answer!" }
-]
 
 @app.route('/')
 def home():
@@ -23,15 +14,29 @@ def home():
 def chat():
     if request.method == 'OPTIONS':
         return jsonify({}), 200
+
     data = request.json
-    user_message = data.get('message', '').lower().strip()
-    for item in responses:
-        if item['input'] == user_message:
-            return jsonify({ 'reply': item['reply'] })
-    for item in responses:
-        if item['input'] in user_message:
-            return jsonify({ 'reply': item['reply'] })
-    return jsonify({ 'reply': "Sorry, I don't understand. Try: hello, how are you, bye" })
+    user_message = data.get('message', '')
+
+    response = requests.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        headers={
+            'Authorization': f'Bearer {os.environ.get("GROQ_API_KEY")}',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'model': 'llama3-8b-8192',
+            'messages': [
+                {'role': 'system', 'content': 'You are a friendly chatbot. Keep replies short and conversational.'},
+                {'role': 'user', 'content': user_message}
+            ],
+            'max_tokens': 200
+        }
+    )
+
+    result = response.json()
+    bot_reply = result['choices'][0]['message']['content']
+    return jsonify({'reply': bot_reply})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
